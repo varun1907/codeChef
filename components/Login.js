@@ -1,5 +1,5 @@
 import React from 'react';
-import { StyleSheet, Text, View,Dimensions,TouchableOpacity,Picker,ScrollView,KeyboardAvoidingView,Keyboard } from 'react-native';
+import { StyleSheet, Text, View,Dimensions,TouchableOpacity,Image,Keyboard,AsyncStorage } from 'react-native';
 import { Input,Icon,Button } from 'react-native-elements';
 import axios from 'axios';
 
@@ -10,6 +10,10 @@ export default class Login extends React.Component {
     emailValid: false,
     password: null,
     passwordValid: false,
+    verifyEmail:false,
+    verifyEmailMessage:null,
+    credentials:false,
+    credentialsMessage:null
 
   }
 
@@ -36,6 +40,7 @@ export default class Login extends React.Component {
   }
 
   submitInfo = () =>{
+    this.setState({verifyEmail:false,credentials:false})
     Keyboard.dismiss();
     console.log(this.state.emailValid + this.state.email);
     console.log(this.state.passwordValid + this.state.password);
@@ -45,7 +50,6 @@ export default class Login extends React.Component {
           email: this.state.email,
           password: this.state.password,
       })
-    
     axios.post('https://apps.scriptguru.org/api/login', body, {
         headers: {
             'Accept': 'application/json',
@@ -53,15 +57,27 @@ export default class Login extends React.Component {
         }
     })
     .then(async res => {
-      console.log(res.data);
-        //await AsyncStorage.setItem('settings', JSON.stringify(res.data.settings))
-        
+      console.log(res.data.data);
+      try {
+        await AsyncStorage.setItem('user', JSON.stringify(res.data));
+      } catch (error) {
+        // Error saving data
+        console.log(error)
+      }
+      
+      //await AsyncStorage.setItem('token', JSON.stringify(res.data.data.api_token));
+      this.props.navigation.navigate('dashboard')
     })
     .catch(error => {
-        if(error.request) {
-            console.log('Network request failed');
-            console.log(error);
+      if (error.response) {
+        if(!error.response.data.message){
+          this.setState({verifyEmail:true,verifyEmailMessage:error.response.data.error})
         }
+        if(error.response.data.message){
+          this.setState({credentials:true,credentialsMessage:error.response.data.errors.email[0]})
+        }
+        console.log(error.response.data);
+      }
     });
     console.log('clicked');
   }
@@ -69,13 +85,29 @@ export default class Login extends React.Component {
 
     render() {
       return (
+
         <View style={styles.container}>
-          <ScrollView>
+          
+          <View style={{ backgroundColor:'white',margin:70,flex:1,zIndex:10 }}>
+
           <View style={styles.signUpTextView}>
             <Text style={styles.signUpText}>Login</Text>
           </View>
         
-          <View style={[styles.container,{justifyContent:'center'}]}>
+          <View>
+
+            {this.state.verifyEmail
+            ?
+            <Text style={{ textAlign:'center',marginTop:20,fontSize:20,color:'black',marginBottom:20 }}>{this.state.verifyEmailMessage}</Text>
+            :
+            null}
+
+            
+            {this.state.credentials
+            ?
+            <Text style={{ textAlign:'center',marginTop:20,fontSize:20,color:'black',marginBottom:20 }}>{this.state.credentialsMessage}</Text>
+            :
+            null}
 
             <View>
               <Input
@@ -84,7 +116,8 @@ export default class Login extends React.Component {
                 autoCapitalize='none'
                 onChangeText={(text) => this.handleEmail(text)}
                 containerStyle={styles.formStyle}
-                leftIcon={<Icon type='MaterialIcons' name='email' color='white' />}
+                inputContainerStyle={styles.inputStyle}
+                leftIcon={<Icon type='MaterialIcons' name='email' color='black' />}
               />
             </View>
 
@@ -92,9 +125,11 @@ export default class Login extends React.Component {
               <Input
                 placeholder='Password'
                 underlineColorAndroid='transparent'
+                secureTextEntry={true}
                 onChangeText={(text) => this.handlePassword(text)}
                 containerStyle={styles.formStyle}
-                leftIcon={<Icon type='foundation' name='key' color='white' />}
+                inputContainerStyle={styles.inputStyle}
+                leftIcon={<Icon type='foundation' name='key' color='black' />}
               />
             </View>
 
@@ -110,16 +145,17 @@ export default class Login extends React.Component {
               />
           </View>
 
-
+        <View style={{alignItems:'center',marginBottom:40}}>
           <View style={{ flexDirection:'row' }}>
             <Text style={styles.loginText}>Here for first time?</Text>
             <TouchableOpacity onPress={() => {this.props.navigation.navigate('signup')}}>
             <Text style={styles.loginText}> Register </Text>
             </TouchableOpacity>
           </View>
+        </View>  
 
         </View>
-        </ScrollView>
+        </View>
         </View>
       );
     }
@@ -130,19 +166,27 @@ export default class Login extends React.Component {
       flex: 1,
       backgroundColor: '#293046',
       alignItems:'center',
+      zIndex:1
     },
     signUpTextView: {
-        marginTop:100
+        marginTop: 50
     },
     signUpText: {
       textAlign:'center',
-      color:'white',
+      color:'black',
       fontFamily:'sans-serif',
       fontSize:30
+    },  
+    inputStyle: {
+      borderBottomWidth: 0
     },
     formStyle: {
-      width: Dimensions.get('window').width-30,
-      height: 60
+      width: Dimensions.get('window').width-50,
+      height: 60,
+      backgroundColor:'#e0e0e0',
+      margin:10,
+      justifyContent:'center',
+      alignItems:'center'
     },
     loginText:{
       color: '#606060'
